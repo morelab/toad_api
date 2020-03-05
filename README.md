@@ -1,5 +1,5 @@
 # py-unsserv
-[![Build Status](https://travis-ci.com/todo?branch=master)](https://travis-ci.com/todo)
+[![Build Status](https://travis-ci.com/morelab/toad_api.svg?branch=master)](https://travis-ci.com/morelab/toad_api)
 [![codecov](https://codecov.io/gh/morelab/toad_api/branch/master/graph/badge.svg)](https://codecov.io/gh/morelab/toad_api)
 
 
