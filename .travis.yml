@@ -1,12 +1,12 @@
 language: python
 
-# execute lint and py37 as separate CI processes
+# execute lint and py38 as separate CI processes
 matrix:
   include:
-    - python: 3.7
+    - python: 3.8
       dist: xenial
       env: TOXENV=py37
-    - python: 3.7
+    - python: 3.8
       dist: xenial
       env: TOXENV=lint
 
@@ -18,5 +18,5 @@ install:
 script:
   - tox
 # Upload coverage report to 'Codecov'
-# after_script:
-  # - codecov --token=e2776e79-fc57-44b2-9246-6421a9355853
+after_script:
+  - codecov --token=88ab283f-11e6-4ff4-8dcd-b8470f1467bd
