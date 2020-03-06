@@ -1,21 +1,22 @@
 import asyncio
 from gmqtt import Client as MQTTClient
 from abc import ABC, abstractmethod
+from toad_api.protocol import PAYLOAD_ERROR_FIELD, PAYLOAD_DATA_FIELD
 
 
 class MQTTMock(ABC):
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def get_subscribe_topics():
         pass
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def get_generic_response(error=False):
         pass
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     async def handle_message(topic, payload, properties, mqtt_client):
         pass
 
@@ -58,7 +59,7 @@ class SPMQTTMock(MQTTMock):
 
     @staticmethod
     def get_generic_response(error=False):
-        return {"error": "Error" if error else None}
+        return {PAYLOAD_ERROR_FIELD: "Error" if error else None}
 
     @staticmethod
     async def handle_message(topic, payload, properties, mqtt_client: MQTTClient):
@@ -74,10 +75,10 @@ class InfluxMQTTMock(MQTTMock):
     @staticmethod
     def get_generic_response(error=False):
         if error:
-            return {"error": "Error"}
+            return {PAYLOAD_ERROR_FIELD: "Error"}
         return {
-            "error": None,
-            "data": {
+            PAYLOAD_ERROR_FIELD: None,
+            PAYLOAD_DATA_FIELD: {
                 "e": [
                     {
                         "v": 0.0,
