@@ -1,14 +1,10 @@
 import asyncio
-
+import pytest
 from tests.mocks import MQTTMockClient, InfluxMQTTMock, SPMQTTMock
-from toad_api.http_server import app
+from toad_api.http_server import  APIServer
+
 
 MQTT_BROKER = "127.0.0.1"
-
-influx_mock = None
-influx_mock_task = None
-sp_mock = None
-sp_mock_task = None
 
 sp_requests = {
     "iotoad.org/api/in/mock/sp_command/sp_m1",
@@ -25,33 +21,29 @@ influx_requests = [
 ]
 
 
-async def start_mocks(loop: asyncio.AbstractEventLoop):
-    global influx_mock, sp_mock, influx_mock_task, sp_mock_task
-
+@pytest.mark.asyncio
+@pytest.fixture
+async def mqtt_mocks(loop: asyncio.AbstractEventLoop):
     influx_mock = MQTTMockClient(InfluxMQTTMock())
     sp_mock = MQTTMockClient(SPMQTTMock())
+    api_server = APIServer()
 
     influx_mock_task = loop.create_task(influx_mock.run_loop(MQTT_BROKER))
     sp_mock_task = loop.create_task(sp_mock.run_loop(MQTT_BROKER))
+    api_server_task = await api_server.start()
+
+    yield api_server
 
 
-async def stop_mocks():
-    global influx_mock, sp_mock, influx_mock_task, sp_mock_task
-
+    # todo: stop api_server await api_server.
     influx_mock.stop_loop()
     sp_mock.stop_loop()
     await influx_mock_task
     await sp_mock_task
 
-    influx_mock = None
-    sp_mock = None
-    influx_mock_task = None
-    sp_mock_task = None
 
-
-async def test_requests(aiohttp_client, loop):
-    await start_mocks(loop)
-
+async def test_requests(mqtt_mocks, aiohttp_client, loop):
+    app = mqtt_mocks
     client = await aiohttp_client(app)
     for request in sp_requests:
         resp = await client.get(request)
@@ -64,4 +56,3 @@ async def test_requests(aiohttp_client, loop):
         response = await resp.json()
         assert response == InfluxMQTTMock.get_generic_response()
 
-    await stop_mocks()

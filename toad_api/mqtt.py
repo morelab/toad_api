@@ -1,6 +1,8 @@
 import asyncio
-from gmqtt import Client as MQTTClient
 from typing import Dict, List, Any, Callable, Coroutine, Optional
+
+from gmqtt import Client as MQTTClient
+
 from toad_api import logger
 
 MQTTTopic = str
@@ -43,11 +45,11 @@ class MQTT(MQTTClient):
         logger.log_info_verbose("SUBSCRIBED")
 
     async def run(
-        self,
-        broker_host: str,
-        message_handler: MessageHandler,
-        topics: List[MQTTTopic],
-        token: str = None,
+            self,
+            broker_host: str,
+            message_handler: MessageHandler,
+            topics: List[MQTTTopic],
+            token: str = None,
     ):
         if self.running:
             raise RuntimeError("MQTT already running")
@@ -64,7 +66,7 @@ class MQTT(MQTTClient):
             self.running = False
 
     async def _run_loop(
-        self, broker_host: str, token: Optional[str], topics: List[MQTTTopic]
+            self, broker_host: str, token: Optional[str], topics: List[MQTTTopic]
     ):
         if token:
             self.set_auth_credentials(token, None)

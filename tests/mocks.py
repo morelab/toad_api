@@ -1,6 +1,8 @@
 import asyncio
-from gmqtt import Client as MQTTClient
 from abc import ABC, abstractmethod
+
+from gmqtt import Client as MQTTClient
+
 from toad_api.protocol import PAYLOAD_ERROR_FIELD, PAYLOAD_DATA_FIELD
 
 

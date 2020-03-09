@@ -1,12 +1,10 @@
 import logging
 
-
 # define VERBOSE only if it wasn't defined before importing this file
 verbose = None
 if "VERBOSE" in globals():
     verbose = globals().get("VERBOSE")
 VERBOSE = verbose
-
 
 # configure logger
 logging.basicConfig(

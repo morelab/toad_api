@@ -1,13 +1,15 @@
+import asyncio
 import json
 import uuid
 from typing import Dict
+
 from aiohttp import web
-from toad_api.parser import check_request_body
-from toad_api.protocol import SUBTOPICS_FIELD, PAYLOAD_FIELD, RESPONSES_BASE_TOPIC
+
+from toad_api import logger
 from toad_api.config import MQTT_RESPONSE_TIMEOUT
 from toad_api.mqtt import MQTT, MQTTTopic, MQTTProperties
-import asyncio
-from toad_api import logger
+from toad_api.parser import check_request_body
+from toad_api.protocol import SUBTOPICS_FIELD, PAYLOAD_FIELD, RESPONSES_BASE_TOPIC
 
 
 class APIServer:
@@ -141,7 +143,7 @@ class APIServer:
         return web.Response(text=json.dumps(response))
 
     async def _mqtt_response_handler(
-        self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties
+            self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties
     ):
         """
         Handles MQTT messages; it stores the message payload in
