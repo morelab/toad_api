@@ -33,7 +33,7 @@ class MQTTMockClient(MQTTClient):
 
     def on_message(self, topic, payload, qos, properties):
         print("RECV MSG:", payload)
-        asyncio.create_task(self.mock.handle_message(topic, payload,properties, self))
+        asyncio.create_task(self.mock.handle_message(topic, payload, properties, self))
 
     def on_disconnect(self, packet, exc=None):
         print("Disconnected")
@@ -80,19 +80,13 @@ class InfluxMQTTMock(MQTTMock):
         return {
             PAYLOAD_ERROR_FIELD: None,
             PAYLOAD_DATA_FIELD: {
-                "e": [
-                    {
-                        "v": 0.0,
-                        "t": 12345678
-                    }
-                ],
+                "e": [{"v": 0.0, "t": 12345678}],
                 "bn": "sp_mock",
-                "bu": "MOCK"
-            }
+                "bu": "MOCK",
+            },
         }
 
     @staticmethod
-    async def handle_message(topic, payload,properties, mqtt_client: MQTTClient):
+    async def handle_message(topic, payload, properties, mqtt_client: MQTTClient):
         response_topic = properties["response_topic"]
         mqtt_client.publish(response_topic, InfluxMQTTMock.get_generic_response())
-

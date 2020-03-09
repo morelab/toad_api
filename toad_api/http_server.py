@@ -13,12 +13,14 @@ from toad_api import logger
 class APIServer:
     """
     Runs the server and handles the requests.
+
     :ivar events: events that are being waited. Mostly is used for MQTT responses.
     :ivar events_results: dict where events results are stored.
     :ivar mqtt_client: ~`toad_api.mqtt.MQTT` mqtt client.
     :ivar app: aiohttp ~`aiohttp.web.Application` of the running server.
     :ivar running: boolean that represents if the server is running.
     """
+
     events: Dict[str, asyncio.Event]
     events_results: Dict[str, bytes]
     mqtt_client: MQTT
@@ -41,19 +43,26 @@ class APIServer:
     async def start(self, mqtt_broker="0.0.0.0", mqtt_token=None):
         """
         Runs the Server.
+
         :param mqtt_broker: MQTT broker IP.
         :param mqtt_token: MQTT credential token.
         :return:
         """
         if self.running:
             raise RuntimeError("Server already running")
-        await self.mqtt_client.run(mqtt_broker, self._mqtt_response_handler, [RESPONSES_BASE_TOPIC + "/#"], mqtt_token)
+        await self.mqtt_client.run(
+            mqtt_broker,
+            self._mqtt_response_handler,
+            [RESPONSES_BASE_TOPIC + "/#"],
+            mqtt_token,
+        )
         # todo: start aiohttp app?
         self.running = True
 
     async def in_requests(self, request: web.Request):
         """
         Handles POST /api/in requests.
+
         :param request: ~`aiohttp.web.Request` instance
         :return:
         """
@@ -63,7 +72,8 @@ class APIServer:
             check_request_body(data_json)
         except ValueError:
             return web.HTTPInternalServerError(
-                reason="Invalid request body")  # todo: log that no all events were received?
+                reason="Invalid request body"
+            )  # todo: log that no all events were received?
         # parse topic and publish to mqtt
         topic_base = request.match_info[
             "mqtt_base_topic"
@@ -80,18 +90,20 @@ class APIServer:
         # wait for mqtt response (with timeout)
         try:
             await asyncio.wait_for(
-                await asyncio.gather(
+                await asyncio.gather(  # type: ignore
                     [
                         self.events[event_id].wait()
                         for event_id in topic_response_id.values()
-                    ]),
+                    ]
+                ),
                 MQTT_RESPONSE_TIMEOUT,
             )
         except asyncio.TimeoutError:
             logger.log_error_verbose(
-                f"Some events were not received from the following requests: {topic_response_id.keys()}")
+                f"Some events were not received from the following requests: {topic_response_id.keys()}"
+            )
         # return response
-        response_json = {}
+        response_json: Dict = {}
         for topic, response_id in topic_response_id:
             if not self.events[response_id].is_set():
                 response_json[topic] = None
@@ -103,13 +115,12 @@ class APIServer:
     async def out_requests(self, request: web.Request):
         """
         Handles GET /api/out requests.
+
         :param request: ~`aiohttp.web.Request` instance
         :return:
         """
         # extract mqtt topic
-        topic = request.match_info[
-            "mqtt_base_topic"
-        ]
+        topic = request.match_info["mqtt_base_topic"]
         # build mqtt payload and response topic
         payload = request.query
         response_id = uuid.uuid4().hex  # generate random ID
@@ -119,16 +130,24 @@ class APIServer:
         self.mqtt_client.publish(topic, payload, response_topic=response_topic)
         # wait for mqtt response (with timeout)
         try:
-            await asyncio.wait_for(self.events[response_id].wait(), MQTT_RESPONSE_TIMEOUT)
+            await asyncio.wait_for(
+                self.events[response_id].wait(), MQTT_RESPONSE_TIMEOUT
+            )
         except asyncio.TimeoutError:
             return web.HTTPInternalServerError(
-                reason="No hook responded the request")  # todo: log that no all events were received?
+                reason="No hook responded the request"
+            )  # todo: log that no all events were received?
         response = json.loads(self.events_results[response_id].decode())
         return web.Response(text=json.dumps(response))
 
-    async def _mqtt_response_handler(self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties):
+    async def _mqtt_response_handler(
+        self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties
+    ):
         """
-        Handles MQTT messages; it stores the message payload in  ~`APIServer.events_results`, and it sets the Event in ~`APIServer.events`
+        Handles MQTT messages; it stores the message payload in
+        ~`APIServer.events_results`, and it sets the Event in
+        ~`APIServer.events`
+
         :param topic: MQTT topic the message was received in.
         :param payload: MQTT message payload
         :param properties: MQTT message properties

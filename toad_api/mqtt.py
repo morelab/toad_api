@@ -1,19 +1,24 @@
 import asyncio
 from gmqtt import Client as MQTTClient
-from typing import  Dict, List, Any, Callable, Coroutine, Optional
+from typing import Dict, List, Any, Callable, Coroutine, Optional
 from toad_api import logger
 
 MQTTTopic = str
 MQTTPayload = bytes
 MQTTProperties = Dict
-MessageHandler = Callable[[MQTTTopic, MQTTPayload, MQTTProperties], Coroutine[Any, Any, None]]
+MessageHandler = Callable[
+    [MQTTTopic, MQTTPayload, MQTTProperties], Coroutine[Any, Any, None]
+]
+
 
 class MQTT(MQTTClient):
     """
     MQTT client class, which sends and receives MQTT messages.
+
     :ivar message_handler: async function that handles MQTT messages
     :ivar running: boolean that represents if the server is running.
     """
+
     message_handler: MessageHandler
     running: bool
 
@@ -37,10 +42,16 @@ class MQTT(MQTTClient):
     def on_subscribe(self, mid, qos, properties):
         logger.log_info_verbose("SUBSCRIBED")
 
-    async def run(self, broker_host: str, message_handler: MessageHandler, topics: List[MQTTTopic], token:str=None):
+    async def run(
+        self,
+        broker_host: str,
+        message_handler: MessageHandler,
+        topics: List[MQTTTopic],
+        token: str = None,
+    ):
         if self.running:
             raise RuntimeError("MQTT already running")
-        self.message_handler = message_handler
+        self.message_handler = message_handler  # type: ignore
         asyncio.create_task(self._run_loop(broker_host, token, topics))
         await self._STARTED.wait()
         self.running = True
@@ -52,7 +63,9 @@ class MQTT(MQTTClient):
             self._STOP = asyncio.Event()
             self.running = False
 
-    async def _run_loop(self, broker_host: str, token: Optional[str], topics: List[MQTTTopic]):
+    async def _run_loop(
+        self, broker_host: str, token: Optional[str], topics: List[MQTTTopic]
+    ):
         if token:
             self.set_auth_credentials(token, None)
         await self.connect(broker_host)

@@ -5,7 +5,8 @@ from toad_api.protocol import PAYLOAD_FIELD, SUBTOPICS_FIELD
 
 def check_request_body(data_json: Dict):
     """
-    Parses POST /api/in requests body
+    Parses POST /api/in requests body.
+
     :param data_json: JSON dictionary containin
     :return: JSON dictionary
     """
