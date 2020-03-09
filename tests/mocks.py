@@ -23,6 +23,7 @@ class MQTTMock(ABC):
 
 class MQTTMockClient(MQTTClient):
     def __init__(self, mock: MQTTMock):
+        MQTTClient.__init__(self)
         self.mock = mock
         self.STOP = asyncio.Event()
 
