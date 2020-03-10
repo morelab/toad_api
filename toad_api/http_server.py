@@ -5,11 +5,11 @@ from typing import Dict
 
 from aiohttp import web
 
+from toad_api import config
 from toad_api import logger
-from toad_api.config import MQTT_RESPONSE_TIMEOUT
 from toad_api.mqtt import MQTT, MQTTTopic, MQTTProperties
-from toad_api.parser import check_request_body
-from toad_api.protocol import SUBTOPICS_FIELD, PAYLOAD_FIELD, RESPONSES_BASE_TOPIC
+from toad_api.protocol import PAYLOAD_FIELD, SUBTOPICS_FIELD
+from toad_api.protocol import RESPONSES_BASE_TOPIC
 
 
 class APIServer:
@@ -20,6 +20,8 @@ class APIServer:
     :ivar events_results: dict where events results are stored.
     :ivar mqtt_client: ~`toad_api.mqtt.MQTT` mqtt client.
     :ivar app: aiohttp ~`aiohttp.web.Application` of the running server.
+    :ivar ip: IP address where the server will be running.
+    :ivar port: port number where the server will be running.
     :ivar running: boolean that represents if the server is running.
     """
 
@@ -27,12 +29,14 @@ class APIServer:
     events_results: Dict[str, bytes]
     mqtt_client: MQTT
     app: web.Application
+    ip: str
+    port: int
     running: bool
 
     def __init__(self):
         self.events = {}
         self.events_results = {}
-        self.mqtt_client = MQTT()
+        self.mqtt_client = MQTT(self.__class__.__name__)
         self.app = web.Application()
         self.app.add_routes(
             [
@@ -42,9 +46,15 @@ class APIServer:
         )
         self.running = False
 
-    async def start(self, mqtt_broker="0.0.0.0", mqtt_token=None):
+    async def start(
+        self,
+        ip: str = config.SERVER_IP,
+        port: int = config.SERVER_PORT,
+        mqtt_broker=config.MQTT_BROKER_IP,
+        mqtt_token=None,
+    ):
         """
-        Runs the Server.
+        Runs the server.
 
         :param mqtt_broker: MQTT broker IP.
         :param mqtt_token: MQTT credential token.
@@ -52,6 +62,8 @@ class APIServer:
         """
         if self.running:
             raise RuntimeError("Server already running")
+        self.ip = ip
+        self.port = port
         await self.mqtt_client.run(
             mqtt_broker,
             self._mqtt_response_handler,
@@ -60,6 +72,17 @@ class APIServer:
         )
         # todo: start aiohttp app?
         self.running = True
+
+    async def stop(self):
+        """
+        Stops the server.
+
+        :return:
+        """
+        if self.running:
+            await self.mqtt_client.stop()
+            # todo: stop aiothpp app?
+            self.running = False
 
     async def in_requests(self, request: web.Request):
         """
@@ -98,11 +121,12 @@ class APIServer:
                         for event_id in topic_response_id.values()
                     ]
                 ),
-                MQTT_RESPONSE_TIMEOUT,
+                config.MQTT_RESPONSE_TIMEOUT,
             )
         except asyncio.TimeoutError:
             logger.log_error_verbose(
-                f"Some events were not received from the following requests: {topic_response_id.keys()}"
+                f"Some events were not received from "
+                f"the following requests: {topic_response_id.keys()}"
             )
         # return response
         response_json: Dict = {}
@@ -133,7 +157,7 @@ class APIServer:
         # wait for mqtt response (with timeout)
         try:
             await asyncio.wait_for(
-                self.events[response_id].wait(), MQTT_RESPONSE_TIMEOUT
+                self.events[response_id].wait(), config.MQTT_RESPONSE_TIMEOUT
             )
         except asyncio.TimeoutError:
             return web.HTTPInternalServerError(
@@ -143,10 +167,11 @@ class APIServer:
         return web.Response(text=json.dumps(response))
 
     async def _mqtt_response_handler(
-            self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties
+        self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties
     ):
         """
-        Handles MQTT messages; it stores the message payload in
+        Handles MQTT messages; it stores the message payload in.
+
         ~`APIServer.events_results`, and it sets the Event in
         ~`APIServer.events`
 
@@ -162,3 +187,18 @@ class APIServer:
         self.events_results[response_id] = payload
         # set event
         self.events[response_id].set()
+
+
+def check_request_body(data_json: Dict):
+    """
+    Parses POST /api/in requests body.
+
+    :param data_json: JSON dictionary containin
+    :return: JSON dictionary
+    """
+    if 2 < len(data_json):
+        raise ValueError("Invalid data JSON")
+    if PAYLOAD_FIELD not in data_json:
+        raise ValueError("Invalid data JSON")
+    if len(data_json) == 2 and SUBTOPICS_FIELD not in data_json:
+        raise ValueError("Invalid data JSON")

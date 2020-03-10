@@ -24,8 +24,8 @@ class MQTT(MQTTClient):
     message_handler: MessageHandler
     running: bool
 
-    def __init__(self):
-        MQTTClient.__init__(self)
+    def __init__(self, client_id):
+        MQTTClient.__init__(self, client_id)
         self.message_handler = ...
         self.running = False
         self._STARTED = asyncio.Event()
@@ -45,11 +45,11 @@ class MQTT(MQTTClient):
         logger.log_info_verbose("SUBSCRIBED")
 
     async def run(
-            self,
-            broker_host: str,
-            message_handler: MessageHandler,
-            topics: List[MQTTTopic],
-            token: str = None,
+        self,
+        broker_host: str,
+        message_handler: MessageHandler,
+        topics: List[MQTTTopic],
+        token: str = None,
     ):
         if self.running:
             raise RuntimeError("MQTT already running")
@@ -66,7 +66,7 @@ class MQTT(MQTTClient):
             self.running = False
 
     async def _run_loop(
-            self, broker_host: str, token: Optional[str], topics: List[MQTTTopic]
+        self, broker_host: str, token: Optional[str], topics: List[MQTTTopic]
     ):
         if token:
             self.set_auth_credentials(token, None)

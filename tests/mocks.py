@@ -7,25 +7,23 @@ from toad_api.protocol import PAYLOAD_ERROR_FIELD, PAYLOAD_DATA_FIELD
 
 
 class MQTTMock(ABC):
-    @staticmethod
     @abstractmethod
-    def get_subscribe_topics():
+    def get_subscribe_topics(self):
         pass
 
-    @staticmethod
     @abstractmethod
-    def get_generic_response(error=False):
+    def get_generic_response(self, error=False):
         pass
 
-    @staticmethod
     @abstractmethod
-    async def handle_message(topic, payload, properties, mqtt_client):
+    async def handle_message(self, topic, payload, properties, mqtt_client):
         pass
 
 
 class MQTTMockClient(MQTTClient):
     def __init__(self, mock: MQTTMock):
-        MQTTClient.__init__(self)
+        client_id = mock.__class__.__name__
+        MQTTClient.__init__(self, client_id)
         self.mock = mock
         self.STOP = asyncio.Event()
 
@@ -56,27 +54,22 @@ class MQTTMockClient(MQTTClient):
 
 
 class SPMQTTMock(MQTTMock):
-    @staticmethod
-    def get_subscribe_topics():
+    def get_subscribe_topics(self):
         return ["command/mock/sp_command/#"]
 
-    @staticmethod
-    def get_generic_response(error=False):
+    def get_generic_response(self, error=False):
         return {PAYLOAD_ERROR_FIELD: "Error" if error else None}
 
-    @staticmethod
-    async def handle_message(topic, payload, properties, mqtt_client: MQTTClient):
+    async def handle_message(self, topic, payload, properties, mqtt_client: MQTTClient):
         response_topic = properties["response_topic"]
-        mqtt_client.publish(response_topic, SPMQTTMock.get_generic_response())
+        mqtt_client.publish(response_topic, self.get_generic_response())
 
 
 class InfluxMQTTMock(MQTTMock):
-    @staticmethod
-    def get_subscribe_topics():
+    def get_subscribe_topics(self):
         return ["query/mock/influx_query/#"]
 
-    @staticmethod
-    def get_generic_response(error=False):
+    def get_generic_response(self, error=False):
         if error:
             return {PAYLOAD_ERROR_FIELD: "Error"}
         return {
@@ -88,7 +81,6 @@ class InfluxMQTTMock(MQTTMock):
             },
         }
 
-    @staticmethod
-    async def handle_message(topic, payload, properties, mqtt_client: MQTTClient):
+    async def handle_message(self, topic, payload, properties, mqtt_client: MQTTClient):
         response_topic = properties["response_topic"]
-        mqtt_client.publish(response_topic, InfluxMQTTMock.get_generic_response())
+        mqtt_client.publish(response_topic, self.get_generic_response())

@@ -12,9 +12,11 @@ matrix:
 
 # install tox
 install:
+  - sudo apt-get update
   - pip install --upgrade pip
   - pip install tox
   - pip install codecov tox
+  - sudo apt-get install mosquitto
 # command to run tests
 script:
   - tox
