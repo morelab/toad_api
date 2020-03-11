@@ -31,17 +31,17 @@ class MQTT(MQTTClient):
         self._STARTED = asyncio.Event()
         self._STOP = asyncio.Event()
 
-    def on_connect(self, flags, rc, properties):
+    def on_connect(self, client, flags, rc, properties):
         logger.log_info_verbose("CONNECTED")
 
-    def on_message(self, topic, payload, qos, properties):
+    def on_message(self, client, topic, payload, qos, properties):
         asyncio.create_task(self.message_handler(topic, payload, properties))
-        logger.log_info_verbose("RECV MSG:", payload)
+        logger.log_info_verbose("RECV MSG:" + payload.decode())
 
-    def on_disconnect(self, packet, exc=None):
+    def on_disconnect(self, client, packet, exc=None):
         logger.log_info_verbose("DISCONNECTED")
 
-    def on_subscribe(self, mid, qos, properties):
+    def on_subscribe(self, client, mid, qos, properties):
         logger.log_info_verbose("SUBSCRIBED")
 
     async def run(
@@ -58,7 +58,7 @@ class MQTT(MQTTClient):
         await self._STARTED.wait()
         self.running = True
 
-    def stop(self):
+    async def stop(self):
         if self.running:
             self._STOP.set()
             self._STARTED = asyncio.Event()

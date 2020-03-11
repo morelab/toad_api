@@ -1,9 +1,10 @@
+import json
 import asyncio
 from abc import ABC, abstractmethod
 
 from gmqtt import Client as MQTTClient
 
-from toad_api.protocol import PAYLOAD_ERROR_FIELD, PAYLOAD_DATA_FIELD
+from toad_api import protocol
 
 
 class MQTTMock(ABC):
@@ -27,18 +28,18 @@ class MQTTMockClient(MQTTClient):
         self.mock = mock
         self.STOP = asyncio.Event()
 
-    def on_connect(self, flags, rc, properties):
+    def on_connect(self, client, flags, rc, properties):
         for topic in self.mock.get_subscribe_topics():
             self.subscribe(topic, qos=0)
 
-    def on_message(self, topic, payload, qos, properties):
+    def on_message(self, client, topic, payload, qos, properties):
         print("RECV MSG:", payload)
         asyncio.create_task(self.mock.handle_message(topic, payload, properties, self))
 
-    def on_disconnect(self, packet, exc=None):
+    def on_disconnect(self, client, packet, exc=None):
         print("Disconnected")
 
-    def on_subscribe(self, mid, qos, properties):
+    def on_subscribe(self, client, mid, qos, properties):
         print("SUBSCRIBED")
 
     async def run_loop(self, broker_host, token=None):
@@ -58,10 +59,11 @@ class SPMQTTMock(MQTTMock):
         return ["command/mock/sp_command/#"]
 
     def get_generic_response(self, error=False):
-        return {PAYLOAD_ERROR_FIELD: "Error" if error else None}
+        return {protocol.PAYLOAD_ERROR_FIELD: "Error" if error else None}
 
     async def handle_message(self, topic, payload, properties, mqtt_client: MQTTClient):
-        response_topic = properties["response_topic"]
+        payload = json.loads(payload.decode())
+        response_topic = payload[protocol.PAYLOAD_RESPONSE_TOPIC_FIELD]
         mqtt_client.publish(response_topic, self.get_generic_response())
 
 
@@ -71,10 +73,10 @@ class InfluxMQTTMock(MQTTMock):
 
     def get_generic_response(self, error=False):
         if error:
-            return {PAYLOAD_ERROR_FIELD: "Error"}
+            return {protocol.PAYLOAD_ERROR_FIELD: "Error"}
         return {
-            PAYLOAD_ERROR_FIELD: None,
-            PAYLOAD_DATA_FIELD: {
+            protocol.PAYLOAD_ERROR_FIELD: None,
+            protocol.PAYLOAD_DATA_FIELD: {
                 "e": [{"v": 0.0, "t": 12345678}],
                 "bn": "sp_mock",
                 "bu": "MOCK",
@@ -82,5 +84,6 @@ class InfluxMQTTMock(MQTTMock):
         }
 
     async def handle_message(self, topic, payload, properties, mqtt_client: MQTTClient):
-        response_topic = properties["response_topic"]
+        payload = json.loads(payload.decode())
+        response_topic = payload[protocol.PAYLOAD_RESPONSE_TOPIC_FIELD]
         mqtt_client.publish(response_topic, self.get_generic_response())
