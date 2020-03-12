@@ -26,8 +26,6 @@ class APIServer:
     :ivar events_results: dict where events results are stored.
     :ivar mqtt_client: ~`toad_api.mqtt.MQTT` mqtt client.
     :ivar app: aiohttp ~`aiohttp.web.Application` of the running server.
-    :ivar ip: IP address where the server will be running.
-    :ivar port: port number where the server will be running.
     :ivar running: boolean that represents if the server is running.
     """
 
@@ -35,14 +33,16 @@ class APIServer:
     events_results: Dict[str, bytes]
     mqtt_client: MQTT
     app: web.Application
-    ip: str
-    port: int
     running: bool
 
     def __init__(self):
+        self.server_id = uuid.uuid4().hex
+        self.responses_topic = ("/".join([MQTT_RESPONSES_TOPIC, self.server_id])).strip(
+            "/"
+        )
         self.events = {}
         self.events_results = {}
-        self.mqtt_client = MQTT(self.__class__.__name__)
+        self.mqtt_client = MQTT(self.__class__.__name__ + "/" + self.server_id)
         self.app = web.Application()
         self.app.add_routes(
             [
@@ -53,11 +53,7 @@ class APIServer:
         self.running = False
 
     async def start(
-        self,
-        ip: str = config.SERVER_IP,
-        port: int = config.SERVER_PORT,
-        mqtt_broker=config.MQTT_BROKER_IP,
-        mqtt_token=None,
+        self, mqtt_broker=config.MQTT_BROKER_IP, mqtt_token=None,
     ):
         """
         Runs the server.
@@ -68,15 +64,12 @@ class APIServer:
         """
         if self.running:
             raise RuntimeError("Server already running")
-        self.ip = ip
-        self.port = port
         await self.mqtt_client.run(
             mqtt_broker,
             self._mqtt_response_handler,
-            [MQTT_RESPONSES_TOPIC + "/#"],
+            [self.responses_topic + "/#"],
             mqtt_token,
         )
-        # todo: start aiohttp app?
         self.running = True
 
     async def stop(self):
@@ -113,7 +106,7 @@ class APIServer:
         for subtopic in data_json.get(REST_SUBTOPICS_FIELD, [""]):
             topic = (MQTT_COMMAND_TOPIC + "/" + topic_base + "/" + subtopic).strip("/")
             response_id = uuid.uuid4().hex  # generate random ID
-            response_topic = MQTT_RESPONSES_TOPIC + "/" + response_id
+            response_topic = self.responses_topic + "/" + response_id
             payload = {
                 PAYLOAD_DATA_FIELD: data_json[REST_PAYLOAD_FIELD],
                 PAYLOAD_RESPONSE_TOPIC_FIELD: response_topic,
@@ -159,7 +152,7 @@ class APIServer:
         topic = MQTT_QUERY_TOPIC + "/" + request.match_info["mqtt_base_topic"]
         # build mqtt payload and response topic
         response_id = uuid.uuid4().hex  # generate random ID
-        response_topic = MQTT_RESPONSES_TOPIC + "/" + response_id
+        response_topic = self.responses_topic + "/" + response_id
         payload = {
             PAYLOAD_DATA_FIELD: dict(request.query),
             PAYLOAD_RESPONSE_TOPIC_FIELD: response_topic,
@@ -198,7 +191,7 @@ class APIServer:
         :return:
         """
         # extract response_id
-        response_id = topic.replace(MQTT_RESPONSES_TOPIC, "")
+        response_id = topic.replace(self.responses_topic, "")
         response_id = response_id.replace("/", "")
         # store event result
         self.events_results[response_id] = payload

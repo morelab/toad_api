@@ -25,6 +25,11 @@ class MQTT(MQTTClient):
     running: bool
 
     def __init__(self, client_id):
+        """
+        Initializes the MQTT client.
+
+        :param client_id: MQTT client id
+        """
         MQTTClient.__init__(self, client_id)
         self.message_handler = ...
         self.running = False
@@ -51,6 +56,15 @@ class MQTT(MQTTClient):
         topics: List[MQTTTopic],
         token: str = None,
     ):
+        """
+        Runs the MQTT client.
+
+        :param broker_host: MQTT broker IP
+        :param message_handler: async function for handliung incoming messages.
+        :param topics: topics to which subscribe
+        :param token: optional token credential for MQTT security
+        :return:
+        """
         if self.running:
             raise RuntimeError("MQTT already running")
         self.message_handler = message_handler  # type: ignore
@@ -59,6 +73,11 @@ class MQTT(MQTTClient):
         self.running = True
 
     async def stop(self):
+        """
+        Stops MQTT client.
+
+        :return:
+        """
         if self.running:
             self._STOP.set()
             self._STARTED = asyncio.Event()

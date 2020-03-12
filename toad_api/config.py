@@ -1,7 +1,17 @@
+from os import path
+import configparser
+
+config = configparser.ConfigParser()
+config.read(path.join(path.dirname(__file__), "config.ini"))
+
+server_config = config["SERVER"]
+mqtt_config = config["MQTT"]
+
+
 # API server configuration
-SERVER_IP = "0.0.0.0"
-SERVER_PORT = 6666
+SERVER_IP = server_config["SERVER_IP"]
+SERVER_PORT = int(server_config["SERVER_PORT"])
 
 # API server's MQTT client configuration
-MQTT_BROKER_IP = "127.0.0.1"
-MQTT_RESPONSE_TIMEOUT = 3
+MQTT_BROKER_IP = mqtt_config["MQTT_BROKER_IP"]
+MQTT_RESPONSE_TIMEOUT = int(mqtt_config["MQTT_RESPONSE_TIMEOUT"])
