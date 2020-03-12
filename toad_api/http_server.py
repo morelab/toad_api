@@ -110,8 +110,8 @@ class APIServer:
             "mqtt_base_topic"
         ]  # retrieved from url variable path
         topic_response_id = {}
-        for subtopic in data_json[REST_SUBTOPICS_FIELD]:
-            topic = MQTT_COMMAND_TOPIC + "/" + topic_base + "/" + subtopic
+        for subtopic in data_json.get(REST_SUBTOPICS_FIELD, [""]):
+            topic = (MQTT_COMMAND_TOPIC + "/" + topic_base + "/" + subtopic).strip("/")
             response_id = uuid.uuid4().hex  # generate random ID
             response_topic = MQTT_RESPONSES_TOPIC + "/" + response_id
             payload = {
@@ -138,7 +138,7 @@ class APIServer:
         # return response
         response_json: Dict = {}
         for topic, response_id in topic_response_id.items():
-            subtopic = topic.split("/")[-1]
+            subtopic = topic.split("/", 1)[1]
             if not self.events[response_id].is_set():
                 response_json[subtopic] = None
                 continue

@@ -7,16 +7,20 @@ from toad_api import config
 from toad_api import protocol
 from toad_api.http_server import APIServer
 
-in_request_json = {
+body_with_subtopics = {
     protocol.REST_PAYLOAD_FIELD: "data",
     protocol.REST_SUBTOPICS_FIELD: ["topic1", "topic2"],
 }
 
+body_without_subtopics = {
+    protocol.REST_PAYLOAD_FIELD: "data",
+}
+
 sp_requests = [
-    ("/api/in/mock/sp_command/sp_m1", in_request_json),
-    ("/api/in/mock/sp_command/sp_g0", in_request_json),
-    ("/api/in/mock/sp_command/row/1", in_request_json),
-    ("/api/in/mock/sp_command/column/2", in_request_json),
+    ("/api/in/mock/sp_command/sp_m1", body_with_subtopics),
+    ("/api/in/mock/sp_command/sp_g0", body_without_subtopics),
+    ("/api/in/mock/sp_command/row/1", body_with_subtopics),
+    ("/api/in/mock/sp_command/column/2", body_without_subtopics),
 ]
 
 influx_requests = [
@@ -72,7 +76,10 @@ async def test_requests(api_server_fixture):
         resp = await client.post(url, json=data)
         assert resp.status == 200
         subtopic_responses = await resp.json()
-        data_subtopics = set(data[protocol.REST_SUBTOPICS_FIELD])
+        data_subtopics = {
+            (url.replace("/api/in", "") + "/" + subtopic).strip("/")
+            for subtopic in data.get(protocol.REST_SUBTOPICS_FIELD, [""])
+        }
         for subtopic, response in subtopic_responses.items():
             assert subtopic in data_subtopics
             assert response == sp_mock.get_generic_response()
