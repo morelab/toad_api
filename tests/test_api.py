@@ -16,6 +16,10 @@ body_without_subtopics = {
     protocol.REST_PAYLOAD_FIELD: "data",
 }
 
+bad_body = {
+    protocol.REST_SUBTOPICS_FIELD: ["topic1", "topic2"],
+}
+
 sp_requests = [
     ("/api/in/mock/sp_command/sp_m1", body_with_subtopics),
     ("/api/in/mock/sp_command/sp_g0", body_without_subtopics),
@@ -28,6 +32,20 @@ influx_requests = [
     "/api/out/mock/influx_query/sp/power?operation=sum&type=w",
     "/api/out/mock/influx_query/sp/power?operation=median&type=w&row=1",
     "/api/out/mock/influx_query/sp/status?operation=median&type=g",
+]
+
+sp_bad_requests = [
+    ("/api/error/mock/sp_command/sp_m1", body_with_subtopics, 404),
+    ("/api/in/mock/sp_command/sp_g0", bad_body, 500),
+    ("/api/in/mock/1", body_with_subtopics, 500),
+    ("/api/in/mock/column/2", bad_body, 500),
+]
+
+influx_bad_requests = [
+    ("/api/out/influx_query/sp/power?type=w", 500),
+    ("/api/out/mock/power?operation=sum&type=w", 500),
+    ("/api/out/mock/power?operation=median&type=w&row=1", 500),
+    ("/api/out/sp/status?operation=median&type=g", 500),
 ]
 
 
@@ -73,7 +91,7 @@ async def test_requests(api_server_fixture):
         response = await resp.json()
         assert response == influx_mock.get_generic_response()
     for url, data in sp_requests:
-        resp = await client.post(url, json=data)
+        resp = await client.put(url, json=data)
         assert resp.status == 200
         subtopic_responses = await resp.json()
         data_subtopics = {
@@ -83,4 +101,10 @@ async def test_requests(api_server_fixture):
         for subtopic, response in subtopic_responses.items():
             assert subtopic in data_subtopics
             assert response == sp_mock.get_generic_response()
-    # todo: invalid requests
+    for url, data, expected_status in sp_bad_requests:
+        resp = await client.put(url, json=data)
+        assert resp.status == expected_status
+
+    for url, expected_status in influx_bad_requests:
+        resp = await client.get(url)
+        assert resp.status == expected_status

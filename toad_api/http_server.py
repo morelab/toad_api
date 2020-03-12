@@ -46,7 +46,7 @@ class APIServer:
         self.app = web.Application()
         self.app.add_routes(
             [
-                web.post(r"/api/in/{mqtt_base_topic:.*}", self.in_requests),
+                web.put(r"/api/in/{mqtt_base_topic:.*}", self.in_requests),
                 web.get("/api/out/{mqtt_base_topic:.*}", self.out_requests),
             ]
         )
@@ -137,14 +137,16 @@ class APIServer:
             )
         # return response
         response_json: Dict = {}
+        status = 200
         for topic, response_id in topic_response_id.items():
             subtopic = topic.split("/", 1)[1]
             if not self.events[response_id].is_set():
                 response_json[subtopic] = None
+                status = 500
                 continue
             response = json.loads(self.events_results[response_id].decode())
             response_json[subtopic] = response
-        return web.json_response(response_json)
+        return web.json_response(response_json, status=status)
 
     async def out_requests(self, request: web.Request):
         """
