@@ -2,16 +2,20 @@ from os import path
 import configparser
 
 config = configparser.ConfigParser()
-config.read(path.join(path.dirname(__file__), "config.ini"))
+config.read(path.join(path.dirname(path.dirname(__file__)), "config", "config.ini"))
 
 server_config = config["SERVER"]
 mqtt_config = config["MQTT"]
+logger_config = config["LOGGER"]
 
 
 # API server configuration
-SERVER_IP = server_config["SERVER_IP"]
-SERVER_PORT = int(server_config["SERVER_PORT"])
+SERVER_IP = server_config["IP"]
+SERVER_PORT = int(server_config["PORT"])
 
 # API server's MQTT client configuration
-MQTT_BROKER_IP = mqtt_config["MQTT_BROKER_IP"]
-MQTT_RESPONSE_TIMEOUT = int(mqtt_config["MQTT_RESPONSE_TIMEOUT"])
+MQTT_BROKER_IP = mqtt_config["BROKER_IP"]
+MQTT_RESPONSE_TIMEOUT = int(mqtt_config["RESPONSE_TIMEOUT"])
+
+# Logger configuration
+LOGGER_VERBOSE = logger_config.getboolean("VERBOSE")

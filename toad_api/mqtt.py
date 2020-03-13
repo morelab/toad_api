@@ -1,3 +1,4 @@
+from gmqtt.mqtt.constants import MQTTv311
 import asyncio
 from typing import Dict, List, Any, Callable, Coroutine, Optional
 
@@ -89,7 +90,7 @@ class MQTT(MQTTClient):
     ):
         if token:
             self.set_auth_credentials(token, None)
-        await self.connect(broker_host)
+        await self.connect(broker_host, version=MQTTv311)
         for topic in topics:
             self.subscribe(topic)
         self._STARTED.set()

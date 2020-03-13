@@ -1,3 +1,4 @@
+from gmqtt.mqtt.constants import MQTTv311
 import json
 import asyncio
 from abc import ABC, abstractmethod
@@ -45,7 +46,7 @@ class MQTTMockClient(MQTTClient):
     async def run_loop(self, broker_host, token=None):
         if token:
             self.set_auth_credentials(token, None)
-        await self.connect(broker_host)
+        await self.connect(broker_host, version=MQTTv311)
 
         await self.STOP.wait()
         await self.disconnect()
