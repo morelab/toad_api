@@ -1,8 +1,13 @@
 from os import path
 import configparser
+import os
+
+DEFAULT_CONFIG_FILE = path.join(
+    path.dirname(path.dirname(__file__)), "config", "config.ini"
+)
 
 config = configparser.ConfigParser()
-config.read(path.join(path.dirname(path.dirname(__file__)), "config", "config.ini"))
+config.read(os.environ.get("TOAD_API_CONFIG_FILE", DEFAULT_CONFIG_FILE))
 
 server_config = config["SERVER"]
 mqtt_config = config["MQTT"]
