@@ -1,4 +1,4 @@
-from toad_api.http_server import APIServer
+from toad_api.server import APIServer
 
 
 async def toad_api_app():

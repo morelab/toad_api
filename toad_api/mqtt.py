@@ -41,6 +41,7 @@ class MQTT(MQTTClient):
         logger.log_info_verbose("CONNECTED")
 
     def on_message(self, client, topic, payload, qos, properties):
+        print(self._client_id)
         asyncio.create_task(self.message_handler(topic, payload, properties))
         logger.log_info_verbose("RECV MSG:" + payload.decode())
 
@@ -70,8 +71,8 @@ class MQTT(MQTTClient):
             raise RuntimeError("MQTT already running")
         self.message_handler = message_handler  # type: ignore
         asyncio.create_task(self._run_loop(broker_host, token, topics))
-        await self._STARTED.wait()
         self.running = True
+        await self._STARTED.wait()
 
     async def stop(self):
         """

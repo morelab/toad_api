@@ -1,18 +1,17 @@
-from os import path
 import asyncio
+import json
+from os import path
+from typing import Dict
 
 import pytest
-
 
 from tests.mocks import MQTTMockClient, InfluxMQTTMock, SPMQTTMock
 from toad_api import config
 from toad_api import protocol
-from toad_api.http_server import APIServer
-from toad_api.mqtt import MQTT
+from toad_api.mqtt import MQTT, MQTTProperties, MQTTTopic
+from toad_api.server import APIServer
 
-CONFIG_FILE = path.join(
-    path.dirname(path.dirname(__file__)), "config", "config.ini"
-)
+CONFIG_FILE = path.join(path.dirname(path.dirname(__file__)), "config", "config.ini")
 
 TEST_DATA = "data"
 
@@ -37,10 +36,13 @@ sp_requests = [
 ]
 
 influx_requests = [
-    ("/api/out/mock/influx_query/sp/power", {"type":"w"}),
-    ("/api/out/mock/influx_query/sp/power", {"operation":"sum","type":"w"}),
-    ("/api/out/mock/influx_query/sp/power",{"operation":"median","type":"w","row":1}),
-    ("/api/out/mock/influx_query/sp/status",{"operation":"median","type":"g"}),
+    ("/api/out/mock/influx_query/sp/power", {"type": "w"}),
+    ("/api/out/mock/influx_query/sp/power", {"operation": "sum", "type": "w"}),
+    (
+        "/api/out/mock/influx_query/sp/power",
+        {"operation": "median", "type": "w", "row": 1},
+    ),
+    ("/api/out/mock/influx_query/sp/status", {"operation": "median", "type": "g"}),
 ]
 
 sp_bad_requests = [
@@ -51,10 +53,10 @@ sp_bad_requests = [
 ]
 
 influx_bad_requests = [
-    ("/api/out/influx_query/sp/power", {"type":"w"}, 500),
-    ("/api/out/mock/power", {"operation":"sum","type":"w"}, 500),
-    ("/api/out/mock/power",{"operation":"median","type":"w","row":1}, 500),
-    ("/api/out/sp/status",{"operation":"median","type":"g"}, 500),
+    ("/api/out/influx_query/sp/power", {"type": "w"}, 500),
+    ("/api/out/mock/power", {"operation": "sum", "type": "w"}, 500),
+    ("/api/out/mock/power", {"operation": "median", "type": "w", "row": 1}, 500),
+    ("/api/out/sp/status", {"operation": "median", "type": "g"}, 500),
 ]
 
 
@@ -82,6 +84,16 @@ def api_server_fixture(loop: asyncio.AbstractEventLoop, aiohttp_client, monkeypa
     loop.run_until_complete(influx_mock_task)
     loop.run_until_complete(sp_mock_task)
     loop.run_until_complete(api_server.stop())
+
+
+@pytest.fixture
+def mqtt_client_fixture(loop: asyncio.AbstractEventLoop):
+    mqtt_client = MQTT("mqtt-test-client")
+
+    yield mqtt_client
+
+    if mqtt_client.running:
+        loop.run_until_complete(mqtt_client.stop())
 
 
 @pytest.mark.asyncio
@@ -120,3 +132,46 @@ async def test_requests(api_server_fixture):
         resp = await client.get(url, params=params)
         assert resp.status == expected_status
 
+
+async def test_mqtt(api_server_fixture, mqtt_client_fixture):
+    client, influx_mock, sp_mock = api_server_fixture
+    mqtt_client = mqtt_client_fixture
+
+    expected_topics = []
+    expected_data = TEST_DATA
+    mqtt_was_correct: Dict[str, asyncio.Event] = {}
+
+    async def handler(topic: MQTTTopic, payload: bytes, properties: MQTTProperties):
+        nonlocal expected_data, expected_topics, mqtt_was_correct
+        assert topic in expected_topics
+        payload_json = json.loads(payload.decode())
+        assert protocol.PAYLOAD_RESPONSE_TOPIC_FIELD in payload_json
+        assert payload_json[protocol.PAYLOAD_DATA_FIELD] == expected_data
+        mqtt_was_correct[topic].set()
+
+    await mqtt_client.run(
+        config.MQTT_BROKER_IP, handler, ["query/mock/#", "command/mock/#"]
+    )
+
+    for url, params in influx_requests:
+        expected_topic = url.replace("/api/out/", "query/").strip("/")
+        expected_topics = [expected_topic]
+        expected_data = params
+        await client.get(url, params=params)
+
+    for url, data in sp_requests:
+        expected_topics = [
+            (url.replace("/api/in/", "command/") + "/" + subtopic).strip("/")
+            for subtopic in data.get(protocol.REST_SUBTOPICS_FIELD, [""])
+        ]
+        expected_data = data[protocol.REST_PAYLOAD_FIELD]
+
+        events_to_wait = []
+        for topic in expected_topics:
+            event = asyncio.Event()
+            mqtt_was_correct[topic] = event
+            events_to_wait.append(event.wait())
+
+        await client.put(url, json=data)
+
+        await asyncio.wait_for(asyncio.gather(*events_to_wait), 1)
