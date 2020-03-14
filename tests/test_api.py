@@ -1,19 +1,28 @@
+from os import path
 import asyncio
 
 import pytest
+
 
 from tests.mocks import MQTTMockClient, InfluxMQTTMock, SPMQTTMock
 from toad_api import config
 from toad_api import protocol
 from toad_api.http_server import APIServer
+from toad_api.mqtt import MQTT
+
+CONFIG_FILE = path.join(
+    path.dirname(path.dirname(__file__)), "config", "config.ini"
+)
+
+TEST_DATA = "data"
 
 body_with_subtopics = {
-    protocol.REST_PAYLOAD_FIELD: "data",
+    protocol.REST_PAYLOAD_FIELD: TEST_DATA,
     protocol.REST_SUBTOPICS_FIELD: ["topic1", "topic2"],
 }
 
 body_without_subtopics = {
-    protocol.REST_PAYLOAD_FIELD: "data",
+    protocol.REST_PAYLOAD_FIELD: TEST_DATA,
 }
 
 bad_body = {
@@ -28,10 +37,10 @@ sp_requests = [
 ]
 
 influx_requests = [
-    "/api/out/mock/influx_query/sp/power?type=w",
-    "/api/out/mock/influx_query/sp/power?operation=sum&type=w",
-    "/api/out/mock/influx_query/sp/power?operation=median&type=w&row=1",
-    "/api/out/mock/influx_query/sp/status?operation=median&type=g",
+    ("/api/out/mock/influx_query/sp/power", {"type":"w"}),
+    ("/api/out/mock/influx_query/sp/power", {"operation":"sum","type":"w"}),
+    ("/api/out/mock/influx_query/sp/power",{"operation":"median","type":"w","row":1}),
+    ("/api/out/mock/influx_query/sp/status",{"operation":"median","type":"g"}),
 ]
 
 sp_bad_requests = [
@@ -42,15 +51,17 @@ sp_bad_requests = [
 ]
 
 influx_bad_requests = [
-    ("/api/out/influx_query/sp/power?type=w", 500),
-    ("/api/out/mock/power?operation=sum&type=w", 500),
-    ("/api/out/mock/power?operation=median&type=w&row=1", 500),
-    ("/api/out/sp/status?operation=median&type=g", 500),
+    ("/api/out/influx_query/sp/power", {"type":"w"}, 500),
+    ("/api/out/mock/power", {"operation":"sum","type":"w"}, 500),
+    ("/api/out/mock/power",{"operation":"median","type":"w","row":1}, 500),
+    ("/api/out/sp/status",{"operation":"median","type":"g"}, 500),
 ]
 
 
 @pytest.fixture
-def api_server_fixture(loop: asyncio.AbstractEventLoop, aiohttp_client):
+def api_server_fixture(loop: asyncio.AbstractEventLoop, aiohttp_client, monkeypatch):
+    monkeypatch.setenv("TOAD_API_CONFIG_FILE", CONFIG_FILE)
+
     sp_mock = SPMQTTMock()
     influx_mock = InfluxMQTTMock()
     mqtt_influx_mock = MQTTMockClient(InfluxMQTTMock())
@@ -85,8 +96,8 @@ async def test_start_stop_server():
 
 async def test_requests(api_server_fixture):
     client, influx_mock, sp_mock = api_server_fixture
-    for url in influx_requests:
-        resp = await client.get(url)
+    for url, params in influx_requests:
+        resp = await client.get(url, params=params)
         assert resp.status == 200
         response = await resp.json()
         assert response == influx_mock.get_generic_response()
@@ -105,6 +116,7 @@ async def test_requests(api_server_fixture):
         resp = await client.put(url, json=data)
         assert resp.status == expected_status
 
-    for url, expected_status in influx_bad_requests:
-        resp = await client.get(url)
+    for url, params, expected_status in influx_bad_requests:
+        resp = await client.get(url, params=params)
         assert resp.status == expected_status
+
