@@ -1,6 +1,5 @@
 import asyncio
 import json
-from os import path
 from typing import Dict
 
 import pytest
@@ -11,13 +10,13 @@ from toad_api import protocol
 from toad_api.mqtt import MQTT, MQTTProperties, MQTTTopic
 from toad_api.server import APIServer
 
-CONFIG_FILE = path.join(path.dirname(path.dirname(__file__)), "config", "config.ini")
 
+TEST_SUBTOPICS = ["topic1", "topic2"]
 TEST_DATA = "data"
 
 body_with_subtopics = {
     protocol.REST_PAYLOAD_FIELD: TEST_DATA,
-    protocol.REST_SUBTOPICS_FIELD: ["topic1", "topic2"],
+    protocol.REST_SUBTOPICS_FIELD: TEST_SUBTOPICS,
 }
 
 body_without_subtopics = {
@@ -25,7 +24,7 @@ body_without_subtopics = {
 }
 
 bad_body = {
-    protocol.REST_SUBTOPICS_FIELD: ["topic1", "topic2"],
+    protocol.REST_SUBTOPICS_FIELD: TEST_SUBTOPICS,
 }
 
 sp_requests = [
@@ -61,9 +60,7 @@ influx_bad_requests = [
 
 
 @pytest.fixture
-def api_server_fixture(loop: asyncio.AbstractEventLoop, aiohttp_client, monkeypatch):
-    monkeypatch.setenv("TOAD_API_CONFIG_FILE", CONFIG_FILE)
-
+def api_server_fixture(loop: asyncio.AbstractEventLoop, aiohttp_client):
     sp_mock = SPMQTTMock()
     influx_mock = InfluxMQTTMock()
     mqtt_influx_mock = MQTTMockClient(InfluxMQTTMock())
