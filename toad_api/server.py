@@ -71,7 +71,7 @@ class APIServer:
             mqtt_token,
         )
         self.running = True
-        logger.log_info(f"Toad API server running... MQTT server on {mqtt_broker}")
+        logger.log_info(f"toad_api server running...")
 
     async def stop(self):
         """
@@ -83,7 +83,7 @@ class APIServer:
             await self.mqtt_client.stop()
             # todo: stop aiothpp app?
             self.running = False
-            logger.log_info("Toad API server stopped")
+            logger.log_info("toad_api server stopped")
 
     async def in_requests(self, request: web.Request):
         """

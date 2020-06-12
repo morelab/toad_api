@@ -72,6 +72,9 @@ class MQTT(MQTTClient):
         asyncio.create_task(self._run_loop(broker_host, token, topics))
         self.running = True
         await self._STARTED.wait()
+        logger.log_info_verbose(
+            f"MQTT Server started on: {broker_host}. Listening to {topics}"
+        )
 
     async def stop(self):
         """
