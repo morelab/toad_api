@@ -41,7 +41,6 @@ class MQTT(MQTTClient):
         logger.log_info_verbose("CONNECTED")
 
     def on_message(self, client, topic, payload, qos, properties):
-        print(self._client_id)
         asyncio.create_task(self.message_handler(topic, payload, properties))
         logger.log_info_verbose("RECV MSG:" + payload.decode())
 

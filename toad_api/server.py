@@ -71,6 +71,7 @@ class APIServer:
             mqtt_token,
         )
         self.running = True
+        logger.log_info(f"Toad API server running... MQTT server on {mqtt_broker}")
 
     async def stop(self):
         """
@@ -82,6 +83,7 @@ class APIServer:
             await self.mqtt_client.stop()
             # todo: stop aiothpp app?
             self.running = False
+            logger.log_info("Toad API server stopped")
 
     async def in_requests(self, request: web.Request):
         """
@@ -114,6 +116,7 @@ class APIServer:
             topic_response_id[topic] = response_id
             self.events[response_id] = asyncio.Event()
             self.mqtt_client.publish(topic, payload)
+            logger.log_info(f"{response_id} - Published MQTT MSG: {topic}:{payload}")
         # wait for mqtt response (with timeout)
         waiting_events = [
             self.events[event_id].wait() for event_id in topic_response_id.values()
@@ -139,6 +142,7 @@ class APIServer:
                 continue
             response = json.loads(self.events_results[response_id].decode())
             response_json[subtopic] = response
+        logger.log_info(f"Encoding MQTT response: {response_json}")
         return web.json_response(response_json, status=status)
 
     async def out_requests(self, request: web.Request):
@@ -160,7 +164,9 @@ class APIServer:
         # publish to mqtt
         self.events[response_id] = asyncio.Event()
         try:
+
             self.mqtt_client.publish(topic, payload)
+            logger.log_info(f"{response_id} - Published MQTT MSG: {topic}:{payload}")
         except Exception as error:
             print(error)
 
@@ -174,6 +180,7 @@ class APIServer:
                 reason="No hook responded the request"
             )  # todo: log that no all events were received?
         response = json.loads(self.events_results[response_id].decode())
+        logger.log_info(f"Encoding MQTT response: {response}")
         return web.json_response(response)
 
     async def _mqtt_response_handler(
@@ -197,6 +204,9 @@ class APIServer:
         self.events_results[response_id] = payload
         # set event
         self.events[response_id].set()
+        logger.log_info(
+            f"{response_id} - Received MQTT MSG response: {topic}:{payload}"
+        )
 
 
 def check_request_body(data_json: Dict):
