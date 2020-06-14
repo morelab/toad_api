@@ -21,9 +21,9 @@ class MQTT(MQTTClient):
     :ivar message_handler: async function that handles MQTT messages
     :ivar running: boolean that represents if the server is running.
     """
-
     message_handler: MessageHandler
     running: bool
+    topics: List[MQTTTopic]
 
     def __init__(self, client_id):
         """
@@ -34,15 +34,20 @@ class MQTT(MQTTClient):
         MQTTClient.__init__(self, client_id)
         self.message_handler = ...
         self.running = False
+        self.topics = []
         self._STARTED = asyncio.Event()
         self._STOP = asyncio.Event()
 
     def on_connect(self, client, flags, rc, properties):
         logger.log_info_verbose("CONNECTED")
+        # subscribe to topics to ensure subscriptions are maintained after
+        # connection loss
+        for topic in self.topics:
+            self.subscribe(topic)
 
     def on_message(self, client, topic, payload, qos, properties):
-        asyncio.create_task(self.message_handler(topic, payload, properties))
         logger.log_info_verbose("RECV MSG:" + payload.decode())
+        asyncio.create_task(self.message_handler(topic, payload, properties))
 
     def on_disconnect(self, client, packet, exc=None):
         logger.log_info_verbose("DISCONNECTED")
@@ -93,9 +98,10 @@ class MQTT(MQTTClient):
     ):
         if token:
             self.set_auth_credentials(token, None)
+
+        self.topics = topics
+        # connect will trigger on_connect() which will subscribe to topics
         await self.connect(broker_host, version=MQTTv311)
-        for topic in topics:
-            self.subscribe(topic)
         self._STARTED.set()
         await self._STOP.wait()
         await self.disconnect()
