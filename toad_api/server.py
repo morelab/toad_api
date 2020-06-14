@@ -12,6 +12,7 @@ from toad_api.protocol import (
     MQTT_RESPONSES_TOPIC,
     PAYLOAD_DATA_FIELD,
     PAYLOAD_RESPONSE_TOPIC_FIELD,
+    PAYLOAD_ERROR_FIELD,
     MQTT_COMMAND_TOPIC,
     MQTT_QUERY_TOPIC,
 )
@@ -180,8 +181,12 @@ class APIServer:
                 reason="No hook responded the request"
             )  # todo: log that no all events were received?
         response = json.loads(self.events_results[response_id].decode())
+        if PAYLOAD_ERROR_FIELD in response and response[PAYLOAD_ERROR_FIELD]:
+            status = 500
+        else:
+            status = 200
         logger.log_info(f"Encoding MQTT response: {response}")
-        return web.json_response(response)
+        return web.json_response(response, status=status)
 
     async def _mqtt_response_handler(
         self, topic: MQTTTopic, payload: bytes, properties: MQTTProperties
