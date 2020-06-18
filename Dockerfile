@@ -1,13 +1,18 @@
 FROM python:3.8
 
-WORKDIR /usr/src/toad_api
+WORKDIR /app
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY ./toad_api ./toad_api
-COPY ./run_server.sh ./run_server.sh
+COPY ./run.sh ./run.sh
 
-EXPOSE 80:8080
+RUN mkdir ./config
+VOLUME ./config
 
-CMD [ "./run_server.sh" ]
+EXPOSE 80
+
+CMD ["./run.sh"]
+
+# docker run --network=iotoad_network -p 80:80 -v $(pwd)/config:/app/config toad_api
