@@ -11,8 +11,8 @@ COPY ./run.sh ./run.sh
 RUN mkdir ./config
 VOLUME ./config
 
-EXPOSE 80
+EXPOSE 8080
 
 CMD ["./run.sh"]
 
-# docker run --network=iotoad_network -p 80:80 -v $(pwd)/config:/app/config toad_api
+# docker run --network=iotoad_network -p 8080:8080 -v $(pwd)/config:/app/config toad_api
